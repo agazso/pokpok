@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+        <meta property="og:image" content="balloon.png">
+        <meta property="og:title" content="POK POK">
+        <meta property="og:image:width" content="101">
+        <meta property="og:image:height" content="119">
+        <meta property="twitter:image" content="https://test.felfele.org/pokpok/balloon.png">
+		<title>POK POK</title>
+        <link rel="apple-touch-icon" href="balloon.png">
+        <link rel="icon" href="balloon.png">
+		<style>
+			body {
+				width: 100vw;
+				height: 100vh;
+				margin: 0;
+			}
+
+			canvas {
+				border: 0px solid black;
+				background-color: #cef5ff;
+			}
+
+			@font-face {
+				font-family: 'ZX Spectrum';
+				src: url('zx-spectrum.ttf');
+			}
+
+			.overlay {
+				position: absolute;
+				top: 0;
+				left: 0;
+				color: #d33f49;
+				width: 100%;
+				margin-top: 10px;
+				font-family: 'ZX Spectrum';
+				display: flex;
+				flex-direction: row;
+				justify-content: space-evenly;
+			}
+
+			.label {
+				display: flex;
+			}
+            
+            #center {
+				position: absolute;
+				top: 0;
+				left: 0;
+				color: #d33f49;
+				width: 100%;
+                height: 100%;
+				font-family: 'ZX Spectrum';
+				display: flex;
+				flex-direction: row;
+				justify-content: center;
+                align-items: center;
+            }
+            .blink {
+                animation: blinker 1s step-start infinite;
+            }
+            @keyframes blinker {
+                0% { opacity: 0; }
+                80% { opacity: 1; }
+                100% { opacity: 0; }
+            }
+
+		</style>
+	</head>
+	<div class="overlay">
+		<div class="label" id="score">SCORE: 0000</div>
+		<div class="label">POK POK</div>
+		<div class="label" id="hiScore">HI-SCORE: 0000</div>
+	</div>
+    <div id="center" class="blink">
+        GAME OVER
+    </div>
+	<canvas id="canvas" width="150" height="150"></canvas>
+	<script>
+        (function pokpok() {
+            const canvas = document.getElementById('canvas')
+            canvas.width = document.body.clientWidth
+            canvas.height = document.body.clientHeight
+            const ctx = canvas.getContext('2d')
+            ctx.fillStyle = '#CEF5FF'
+
+            let balloonLoaded = false
+            const balloonImage = new Image() // Create new img element
+            balloonImage.src = 'balloon.png'
+            balloonImage.addEventListener('load', () => {
+                balloonLoaded = true
+                console.debug({ balloonLoaded })
+            })
+
+            let score = 0
+            let hiScore = 0
+            let gameState = 'intro' // 'gameplay' | 'gameover' | 'intro'
+            let speedMultiplier = 10
+            let paused = false
+            let mouseX = 0
+            let mouseY = 0
+            const balloons = []
+            const numBalloons = 10
+            const minClickTime = 300
+            const width = Math.floor(canvas.width / numBalloons)
+
+        
+            function createBalloons() {
+                for (let i = 0; i < numBalloons; i++) {
+                    const balloon = createBalloon(
+                        Math.floor(canvas.width / numBalloons) * i,
+                        canvas.height,
+                        Math.floor(Math.random() * speedMultiplier) + 1,
+                    )
+                    balloons[i] = balloon
+                }
+            }
+
+            function createBalloon(x, y, vy) {
+                return {
+                    x,
+                    y,
+                    vy,
+                }
+            }
+
+            function pad4(n) {
+                return ('0000' + n).slice(-4)
+            }
+
+            function updateScore(value) {
+                score = value
+                document.getElementById('score').innerText = `SCORE: ${pad4(score)}`
+
+                if (score > hiScore) {
+                    hiScore = score
+                    document.getElementById('hiScore').innerText = `HI-SCORE: ${pad4(hiScore)}`
+                }
+
+                scoreMultiplier = Math.floor((score / 100) * (score / 100))
+                speedMultiplier = 10 + scoreMultiplier
+            }
+
+            function drawBalloons() {
+                document.body.style.cursor = 'default'
+
+                for (let i = 0; i < numBalloons; i++) {
+                    const balloon = balloons[i]
+                    ctx.fillRect(balloon.x, balloon.y, width, width)
+
+                    balloon.y -= balloon.vy
+                    ctx.drawImage(balloonImage, balloon.x, balloon.y)
+
+                    if (balloon.x <= mouseX && balloon.x + width >= mouseX && balloon.y <= mouseY && balloon.y + width >= mouseY) {
+                        document.body.style.cursor = 'pointer'
+                    }
+
+
+                    if (balloon.y < 0) {
+                        if (gameState === 'gameplay') {
+                            gameOver()
+                        }
+                        else if (gameState === 'intro') {
+                            ctx.fillStyle = '#CEF5FF'
+                            ctx.fillRect(balloon.x, balloon.y, width, width)
+
+                            balloon.y = canvas.height
+                            balloon.vy = Math.floor(Math.random() * speedMultiplier) + 1
+                        }
+                    }
+                }    
+            }
+
+            function intro() {
+                gameState = 'intro'
+
+                speedMultiplier = 10
+
+                ctx.fillRect(0, 0, canvas.width, canvas.height)
+                createBalloons()
+                updateScore(0)
+
+                const center = document.getElementById('center')
+                center.innerText = 'CLICK TO START'
+            }
+
+            function startGame() {
+                gameState = 'gameplay'
+
+                document.getElementById('center').innerText = ''
+
+                ctx.fillRect(0, 0, canvas.width, canvas.height)
+                createBalloons()
+                updateScore(0)
+            }
+
+            function gameOver() {
+                lastClickTime = Date.now()
+                gameState = 'gameover'
+
+                const center = document.getElementById('center')
+                center.innerText = 'GAME OVER'
+            }
+
+            let lastTime = 0
+            function draw() {
+                if (!balloonLoaded) {
+                    return false
+                }
+
+
+                if (gameState === 'gameplay') {
+                    if (paused) {
+                        center.innerText = 'PAUSED'
+                    } else {
+                        center.innerText = ''
+                        const elapsed = Date.now() - lastTime
+                        if (elapsed > 100) {
+                            lastTime = Date.now()
+                            drawBalloons()
+                        }
+                    }
+                }
+
+                if (gameState === 'intro') {
+                    const elapsed = Date.now() - lastTime
+                    if (elapsed > 100) {
+                        lastTime = Date.now()
+                        drawBalloons()
+                    }
+                }
+
+
+                requestAnimationFrame(draw)
+            }
+
+            intro()
+
+            window.addEventListener('load', draw)
+            window.addEventListener('resize', () => {
+                canvas.width = document.body.clientWidth
+                canvas.height = document.body.clientHeight
+                ctx.fillStyle = '#CEF5FF'
+                ctx.fillRect(0, 0, canvas.width, canvas.height)
+            })
+
+            let lastClickTime = 0
+            window.addEventListener('mousedown', (event) => {
+                event.preventDefault()
+                event.stopPropagation()
+
+                if (!event.isTrusted || !event.screenX || !event.screenY) {
+                    return
+                }
+
+                if (gameState === 'gameplay' && !paused) {
+                    const index = Math.floor(event.clientX / width)
+                    console.debug({ index, event })
+                    const balloon = balloons[index]
+                    const now = Date.now()
+
+                    if (now - lastClickTime < minClickTime) {
+                        return
+                    }
+                    lastClickTime = now
+
+                    if (event.clientY > balloon.y && event.clientY < balloon.y + width) {
+                        ctx.fillRect(balloon.x, balloon.y, width, width)
+                        
+                        balloon.y = canvas.height + Math.floor((canvas.height - event.clientY) / 2)
+                        balloon.vy = Math.floor(Math.random() * speedMultiplier) + 3
+                        
+                        updateScore(score + 1)                        
+                    }
+                    return
+                }
+
+                if (gameState === 'gameover') {
+                    if (Date.now() - lastClickTime < 3000) {
+                        return
+                    }
+                    intro()
+                    return
+                }
+
+                if (gameState === 'intro') {
+                    startGame()
+                    return
+                }
+            })
+
+            window.addEventListener('mousemove', (event) => {
+                event.preventDefault()
+                event.stopPropagation()
+
+                if (!event.isTrusted || !event.screenX || !event.screenY) {
+                    return
+                }
+
+                mouseX = event.clientX
+                mouseY = event.clientY
+            })
+
+            window.addEventListener('keyup', (event) => {
+                switch (event.code) {
+                    case 'KeyP': paused = !paused; return
+                }
+            })
+        })()
+	</script>
+</html>

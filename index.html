@@ -7,10 +7,16 @@
         <meta property="og:image:width" content="101">
         <meta property="og:image:height" content="119">
         <meta property="twitter:image" content="https://test.felfele.org/pokpok/balloon.png">
+	    <meta name="theme-color" content='#cef5ff' />
+		<link rel="manifest" href="/manifest.json" />
 		<title>POK POK</title>
         <link rel="apple-touch-icon" href="balloon.png">
         <link rel="icon" href="balloon.png">
 		<style>
+            html,
+            body {
+                overscroll-behavior: none;
+            }
 			body {
 				width: 100vw;
 				height: 100vh;
@@ -246,17 +252,29 @@
             })
 
             let lastClickTime = 0
-            window.addEventListener('mousedown', (event) => {
+            function onClick(event) {
                 event.preventDefault()
                 event.stopPropagation()
 
-                if (!event.isTrusted || !event.screenX || !event.screenY) {
+                if (!event.isTrusted) {
                     return
                 }
 
+                let clientX, clientY;
+    
+                if (event.type === 'mousedown') {
+                    clientX = event.clientX;
+                    clientY = event.clientY;
+                } else if (event.type === 'touchstart') {
+                    if (event.touches.length === 0) return;
+                    clientX = event.touches[0].clientX;
+                    clientY = event.touches[0].clientY;
+                } else {
+                    return;
+                }
+
                 if (gameState === 'gameplay' && !paused) {
-                    const index = Math.floor(event.clientX / width)
-                    console.debug({ index, event })
+                    const index = Math.floor(clientX / width)
                     const balloon = balloons[index]
                     const now = Date.now()
 
@@ -265,10 +283,10 @@
                     }
                     lastClickTime = now
 
-                    if (event.clientY > balloon.y && event.clientY < balloon.y + width) {
+                    if (clientY > balloon.y && clientY < balloon.y + width) {
                         ctx.fillRect(balloon.x, balloon.y, width, width)
                         
-                        balloon.y = canvas.height + Math.floor((canvas.height - event.clientY) / 2)
+                        balloon.y = canvas.height + Math.floor((canvas.height - clientY) / 2)
                         balloon.vy = Math.floor(Math.random() * speedMultiplier) + 3
                         
                         updateScore(score + 1)                        
@@ -288,7 +306,9 @@
                     startGame()
                     return
                 }
-            })
+            }
+            window.addEventListener('mousedown', onClick)
+            window.addEventListener('touchstart', onClick)
 
             window.addEventListener('mousemove', (event) => {
                 event.preventDefault()

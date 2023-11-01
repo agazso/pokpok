@@ -8,8 +8,9 @@
         <meta property="og:image:height" content="119">
         <meta property="twitter:image" content="https://test.felfele.org/pokpok/balloon.png">
 	    <meta name="theme-color" content='#cef5ff' />
-		<link rel="manifest" href="/manifest.json" />
+        <meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0'/>
 		<title>POK POK</title>
+        <link rel="manifest" href="/manifest.json" />
         <link rel="apple-touch-icon" href="balloon.png">
         <link rel="icon" href="balloon.png">
 		<style>
@@ -91,16 +92,8 @@
             const ctx = canvas.getContext('2d')
             ctx.fillStyle = '#CEF5FF'
 
-            let balloonLoaded = false
-            const balloonImage = new Image() // Create new img element
-            balloonImage.src = 'balloon.png'
-            balloonImage.addEventListener('load', () => {
-                balloonLoaded = true
-                console.debug({ balloonLoaded })
-            })
-
             let score = 0
-            let hiScore = 0
+            let hiScore = loadHiScore()
             let gameState = 'intro' // 'gameplay' | 'gameover' | 'intro'
             let speedMultiplier = 10
             let paused = false
@@ -109,9 +102,25 @@
             const balloons = []
             const numBalloons = 10
             const minClickTime = 300
-            const width = Math.floor(canvas.width / numBalloons)
+            let laneWidth = Math.floor(canvas.width / numBalloons)
 
-        
+            let balloonLoaded = false
+            let balloonWidth = laneWidth
+            let balloonHeight = laneWidth
+            const balloonImage = new Image() // Create new img element
+            balloonImage.src = 'balloon.png'
+            balloonImage.addEventListener('load', () => {
+                balloonLoaded = true
+                console.debug({ balloonLoaded })
+                if (balloonImage.width > laneWidth) {
+                    balloonWidth = laneWidth
+                    balloonHeight = Math.floor(balloonImage.height * laneWidth / balloonImage.width)
+                } else {
+                    balloonWidth = balloonImage.width
+                    balloonHeight = balloonImage.height
+                }
+            })
+
             function createBalloons() {
                 for (let i = 0; i < numBalloons; i++) {
                     const balloon = createBalloon(
@@ -135,6 +144,19 @@
                 return ('0000' + n).slice(-4)
             }
 
+            function loadHiScore() {
+                const storedHiScore = localStorage.getItem('hiscore')
+                if (!storedHiScore) {
+                    return 0
+                }
+
+                try {
+                    return parseInt(storedHiScore, 10)
+                } catch {
+                    return 0
+                }
+            }
+
             function updateScore(value) {
                 score = value
                 document.getElementById('score').innerText = `SCORE: ${pad4(score)}`
@@ -153,12 +175,12 @@
 
                 for (let i = 0; i < numBalloons; i++) {
                     const balloon = balloons[i]
-                    ctx.fillRect(balloon.x, balloon.y, width, width)
+                    ctx.fillRect(balloon.x, balloon.y, balloonWidth, balloonHeight)
 
                     balloon.y -= balloon.vy
-                    ctx.drawImage(balloonImage, balloon.x, balloon.y)
+                    ctx.drawImage(balloonImage, balloon.x, balloon.y, balloonWidth, balloonHeight)
 
-                    if (balloon.x <= mouseX && balloon.x + width >= mouseX && balloon.y <= mouseY && balloon.y + width >= mouseY) {
+                    if (balloon.x <= mouseX && balloon.x + laneWidth >= mouseX && balloon.y <= mouseY && balloon.y + laneWidth >= mouseY) {
                         document.body.style.cursor = 'pointer'
                     }
 
@@ -169,7 +191,7 @@
                         }
                         else if (gameState === 'intro') {
                             ctx.fillStyle = '#CEF5FF'
-                            ctx.fillRect(balloon.x, balloon.y, width, width)
+                            ctx.fillRect(balloon.x, balloon.y, laneWidth, laneWidth)
 
                             balloon.y = canvas.height
                             balloon.vy = Math.floor(Math.random() * speedMultiplier) + 1
@@ -189,6 +211,8 @@
 
                 const center = document.getElementById('center')
                 center.innerText = 'CLICK TO START'
+
+                document.getElementById('hiScore').innerText = `HI-SCORE: ${pad4(hiScore)}`
             }
 
             function startGame() {
@@ -207,6 +231,8 @@
 
                 const center = document.getElementById('center')
                 center.innerText = 'GAME OVER'
+
+                localStorage.setItem('hiscore', hiScore)
             }
 
             let lastTime = 0
@@ -274,7 +300,7 @@
                 }
 
                 if (gameState === 'gameplay' && !paused) {
-                    const index = Math.floor(clientX / width)
+                    const index = Math.floor(clientX / laneWidth)
                     const balloon = balloons[index]
                     const now = Date.now()
 
@@ -283,8 +309,8 @@
                     }
                     lastClickTime = now
 
-                    if (clientY > balloon.y && clientY < balloon.y + width) {
-                        ctx.fillRect(balloon.x, balloon.y, width, width)
+                    if (clientY > balloon.y && clientY < balloon.y + laneWidth) {
+                        ctx.fillRect(balloon.x, balloon.y, balloonWidth, balloonHeight)
                         
                         balloon.y = canvas.height + Math.floor((canvas.height - clientY) / 2)
                         balloon.vy = Math.floor(Math.random() * speedMultiplier) + 3

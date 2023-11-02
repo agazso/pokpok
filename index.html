@@ -95,7 +95,8 @@
             let score = 0
             let hiScore = loadHiScore()
             let gameState = 'intro' // 'gameplay' | 'gameover' | 'intro'
-            let speedMultiplier = 10
+            const initialSpeed = 5
+            let speedMultiplier = initialSpeed
             let paused = false
             let mouseX = 0
             let mouseY = 0
@@ -120,6 +121,20 @@
                     balloonHeight = balloonImage.height
                 }
             })
+            
+            let muted = false
+            const sounds = []
+            for (let i = 0; i < 4; i++) {
+                sounds[i] = new Audio(`pop${i + 1}.mp3`)
+            }
+
+            function playRandomSound() {
+                if (muted) {
+                    return
+                }
+                const sound = Math.floor(Math.random() * sounds.length)
+                sounds[sound].play()
+            }
 
             function createBalloons() {
                 for (let i = 0; i < numBalloons; i++) {
@@ -167,7 +182,7 @@
                 }
 
                 scoreMultiplier = Math.floor((score / 100) * (score / 100))
-                speedMultiplier = 10 + scoreMultiplier
+                speedMultiplier = initialSpeed + scoreMultiplier
             }
 
             function drawBalloons() {
@@ -310,6 +325,7 @@
                     lastClickTime = now
 
                     if (clientY > balloon.y && clientY < balloon.y + laneWidth) {
+                        playRandomSound()
                         ctx.fillRect(balloon.x, balloon.y, balloonWidth, balloonHeight)
                         
                         balloon.y = canvas.height + Math.floor((canvas.height - clientY) / 2)
@@ -351,6 +367,7 @@
             window.addEventListener('keyup', (event) => {
                 switch (event.code) {
                     case 'KeyP': paused = !paused; return
+                    case 'KeyS': muted = !muted; return
                 }
             })
         })()
